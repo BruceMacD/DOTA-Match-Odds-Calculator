@@ -87,6 +87,32 @@ def analyze_team_stats():
         update_elo(w_team_id, l_team_id)
 
 
+def probability_a_beats_b(team_a, team_b):
+    # method from https://fivethirtyeight.com/features/introducing-nfl-elo-ratings/
+    # ELO probability converts to P(A) = 1/(1+10^(m))
+
+    # team A and B passed by ID
+    ratingA = team_elos[team_a]
+    ratingB = team_elos[team_b]
+
+    m = (ratingB - ratingA) / 400
+
+    probability_a_wins = 1 / (1 + math.pow(10, m))
+
+    return probability_a_wins
+
+def convert_to_moneyline_odds(prob):
+    # convert probability to percent
+    percent_chance = prob * 100
+    # calculation depends on if probability is above 50% or below
+    if percent_chance >= 50:
+        odds = - ( percent_chance / (100 - percent_chance)) * 100
+    else:
+        odds = ((100 - percent_chance) / percent_chance) * 100
+
+    return odds
+
+
 if __name__ == "__main__":
 
     # store team names to corresponding IDs
@@ -106,6 +132,10 @@ if __name__ == "__main__":
         try:
             print (ids_to_names[i], team_elos[i])
         except:
+            # This is fine, just data from a game against team not in tournament
             logging.info("Team not stored in tournament accessed")
 
+    # TNC vs. IG vitality
+    print (probability_a_beats_b(2108395, 2640025))
 
+    print(convert_to_moneyline_odds(0.25))
