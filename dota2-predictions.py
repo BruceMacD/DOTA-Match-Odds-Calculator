@@ -2,10 +2,13 @@
 Data analysis tool to predict potential Dota 2 matches
 """
 
+from flask import Flask, jsonify
+app = Flask(__name__)
 import pandas as pd
 import math
 import csv
 import logging
+import json
 
 base_elo = 1600
 data_folder = 'data/'
@@ -15,6 +18,37 @@ id_column = 1
 name_column = 0
 team_elos = {}
 ids_to_names = {}
+data_output = {}
+data_output_file = 'team-stats.json'
+
+
+#TODO: Clean up endpoints, make Flask structure
+@app.route('/odds/<team_a_id>/<team_b_id>', )
+def match_odds(team_a_id, team_b_id):
+    probability_a = get_probability_by_id(team_a_id, team_b_id)
+    probability_b = 1 - probability_a
+    moneyline_a = convert_to_moneyline_odds(probability_a)
+    moneyline_b = convert_to_moneyline_odds(probability_b)
+    name_a = convert_id_to_team_name(team_a_id)
+    name_b = convert_id_to_team_name(team_b_id)
+
+    # create a readable response
+    result = {}
+
+    result[team_a_id] = []
+    result[team_a_id].append({
+        'probability-to-win': str(probability_a),
+        'moneyline': str(moneyline_a),
+        'team-name' : name_a
+    })
+    result[team_b_id] = []
+    result[team_b_id].append({
+        'probability-to-win': str(probability_b),
+        'moneyline': str(moneyline_b),
+        'team-name' : name_b
+    })
+
+    return jsonify(result)
 
 
 def get_elo(team):
@@ -61,7 +95,7 @@ def analyze_team_stats():
         # Used to skip matchups where we don't have usable stats yet.
         skip = 0
 
-        # winner stats
+        # winner stats, some fields for future use
         w_team_id = row['Wteam']
         w_kills = row['Wkills']
         w_deaths = row['Wdeaths']
@@ -87,19 +121,29 @@ def analyze_team_stats():
         update_elo(w_team_id, l_team_id)
 
 
-def probability_a_beats_b(team_a, team_b):
+def get_probability_by_id(team_a, team_b):
+    # read values from json file serving as mock database
+    # team A and B passed by ID
+    with open(data_folder + data_output_file) as json_file:
+        data = json.load(json_file)
+        for p in data[str(team_a)]:
+            rating_a = int(p['elo'])
+        for p in data[str(team_b)]:
+            rating_b = int(p['elo'])
+
+    return probability_a_beats_b(rating_a, rating_b)
+
+
+def probability_a_beats_b(rating_a, rating_b):
     # method from https://fivethirtyeight.com/features/introducing-nfl-elo-ratings/
     # ELO probability converts to P(A) = 1/(1+10^(m))
 
-    # team A and B passed by ID
-    ratingA = team_elos[team_a]
-    ratingB = team_elos[team_b]
-
-    m = (ratingB - ratingA) / 400
+    m = (rating_b - rating_a) / 400
 
     probability_a_wins = 1 / (1 + math.pow(10, m))
 
     return probability_a_wins
+
 
 def convert_to_moneyline_odds(prob):
     # convert probability to percent
@@ -111,6 +155,19 @@ def convert_to_moneyline_odds(prob):
         odds = ((100 - percent_chance) / percent_chance) * 100
 
     return odds
+
+
+def convert_id_to_team_name(team_id):
+    # read values from json file serving as mock database
+    # team A and B passed by ID
+    # will set name if match found
+    id_name = "none"
+    with open(data_folder + data_output_file) as json_file:
+        data = json.load(json_file)
+        for p in data[str(team_id)]:
+            id_name = p['name']
+
+    return id_name
 
 
 if __name__ == "__main__":
@@ -130,12 +187,19 @@ if __name__ == "__main__":
 
     for i in team_elos:
         try:
-            print (ids_to_names[i], team_elos[i])
+            print (i, ids_to_names[i], team_elos[i])
+            # add to output json
+            id_num = str(i)
+            data_output[id_num] = []
+            data_output[id_num].append({
+                'name': ids_to_names[i],
+                'elo': str(team_elos[i])
+            })
         except:
             # This is fine, just data from a game against team not in tournament
             logging.info("Team not stored in tournament accessed")
 
-    # TNC vs. IG vitality
-    print (probability_a_beats_b(2108395, 2640025))
+    # save data to file
+    with open(data_folder + data_output_file, 'w') as outfile:
+        json.dump(data_output, outfile)
 
-    print(convert_to_moneyline_odds(0.25))
