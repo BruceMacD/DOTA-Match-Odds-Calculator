@@ -1,11 +1,11 @@
-# eSmarts
+# DOTA 2 eSports Odds Calculator
 Smart predictions for DOTA 2 match results.
 
 Developed for Atlantic Lottery Hackathon 005.
 
 ## What is this?
 
-eSmarts is a tool for processing large amounts of Dota 2 match data to determine team rankings. These rankings 
+This is a tool for processing large amounts of Dota 2 match data to determine team rankings. These rankings 
 are then used to determine the probability of a given team winning a match.
 
 ## Instructions
